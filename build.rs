@@ -3,6 +3,7 @@ extern crate regex;
 use regex::Regex;
 use std::env;
 use std::path::PathBuf;
+use std::path::Path;
 use std::process::Command;
 
 enum CollectdVersion {
@@ -40,28 +41,31 @@ fn detect_collectd_version() -> String {
 
 #[cfg(not(collectd_docs_rs))]
 fn detect_collectd_version() -> String {
-    let re = Regex::new(r"collectd (\d+\.\d+)\.\d+").expect("Valid collectd regex");
-    println!("cargo:rerun-if-env-changed=COLLECTD_VERSION");
-
-    env::var_os("COLLECTD_VERSION")
+    let re = Regex::new(r"(\d+\.\d+)\.\d+").expect("Valid collectd regex");
+    env::var_os("COLLECTD_PATH")
         .map(|x| {
             x.into_string()
-                .expect("COLLECTD_VERSION to be a valid string")
+                .expect("COLLECTD_PATH to be a valid string")
         })
-        .unwrap_or_else(|| {
-            Command::new("collectd")
-                .args(&["-h"])
-                .output()
-                .map(|x| String::from_utf8(x.stdout).expect("Collectd output to be utf8"))
-                .map(|x| {
-                    re.captures(&x)
-                        .expect("Version info to be present in collectd")
-                        .get(1)
-                        .map(|x| String::from(x.as_str()))
-                        .unwrap()
-                })
-                .expect("Collectd -h to execute successfully")
+        .map(|x| {
+            if !Path::new(&x.to_string()).exists() { panic!("COLLECTD_PATH must be a valid path"); }
         })
+        .unwrap_or_else( || panic!("COLLECTD_PATH must be specified"));
+
+    let mut command = env::var_os("COLLECTD_PATH").unwrap().into_string().unwrap();
+    command.push_str("/./version-gen.sh");
+
+    Command::new(command)
+        .output()
+        .map(|x| String::from_utf8(x.stdout).expect("Collectd output to be utf8"))
+        .map(|x| {
+            re.captures(&x)
+                .expect("Version info to be present in collectd version-gen.sh")
+                .get(1)
+                .map(|x| String::from(x.as_str()))
+                .unwrap()
+        })
+        .expect("collectd-{COLLECTD_VERSION}/version-gen.sh to exist")
 }
 
 #[cfg(feature = "bindgen")]
