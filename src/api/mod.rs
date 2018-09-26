@@ -162,39 +162,38 @@ impl<'a> ValueList<'a> {
         let ds_len = length(set.ds_num);
         let list_len = length(list.values_len);
 
-        let values: Result<Vec<ValueReport>, Error> = unsafe {
-            slice::from_raw_parts(list.values, list_len)
-        }.iter()
-            .zip(unsafe { slice::from_raw_parts(set.ds, ds_len) })
-            .map(|(val, source)| unsafe {
-                let v = match ::std::mem::transmute(source.type_) {
-                    ValueType::Gauge => Value::Gauge(val.gauge),
-                    ValueType::Counter => Value::Counter(val.counter),
-                    ValueType::Derive => Value::Derive(val.derive),
-                    ValueType::Absolute => Value::Absolute(val.absolute),
-                };
+        let values: Result<Vec<ValueReport>, Error> =
+            unsafe { slice::from_raw_parts(list.values, list_len) }
+                .iter()
+                .zip(unsafe { slice::from_raw_parts(set.ds, ds_len) })
+                .map(|(val, source)| unsafe {
+                    let v = match ::std::mem::transmute(source.type_) {
+                        ValueType::Gauge => Value::Gauge(val.gauge),
+                        ValueType::Counter => Value::Counter(val.counter),
+                        ValueType::Derive => Value::Derive(val.derive),
+                        ValueType::Absolute => Value::Absolute(val.absolute),
+                    };
 
-                let name = from_array(&source.name).with_context(|_e| {
-                    format!("For plugin: {}, data source name could not be decoded", p)
-                })?;
+                    let name = from_array(&source.name).with_context(|_e| {
+                        format!("For plugin: {}, data source name could not be decoded", p)
+                    })?;
 
-                Ok(ValueReport {
-                    name,
-                    value: v,
-                    min: source.min,
-                    max: source.max,
-                })
-            })
-            .collect();
+                    Ok(ValueReport {
+                        name,
+                        value: v,
+                        min: source.min,
+                        max: source.max,
+                    })
+                }).collect();
 
         assert!(list.time > 0);
         assert!(list.interval > 0);
 
         Ok(ValueList {
             values: values?,
-            plugin_instance: empty_to_none(from_array(&list.plugin_instance).with_context(|_e| {
-                format!("For plugin: {}, plugin instance could not be decoded", p)
-            })?),
+            plugin_instance: empty_to_none(from_array(&list.plugin_instance).with_context(
+                |_e| format!("For plugin: {}, plugin instance could not be decoded", p),
+            )?),
             plugin: p,
             type_: from_array(&list.type_)
                 .with_context(|_e| format!("For plugin: {}, type could not be decoded", p))?,
@@ -295,13 +294,13 @@ impl<'a> ValueListBuilder<'a> {
             .list
             .plugin_instance
             .map(|x| to_array_res(x).context("plugin_instance"))
-            .unwrap_or_else(|| Ok([0i8; ARR_LENGTH]))?;
+            .unwrap_or_else(|| Ok([0 as c_char; ARR_LENGTH]))?;
 
         let type_instance = self
             .list
             .type_instance
             .map(|x| to_array_res(x).context("type_instance"))
-            .unwrap_or_else(|| Ok([0i8; ARR_LENGTH]))?;
+            .unwrap_or_else(|| Ok([0 as c_char; ARR_LENGTH]))?;
 
         // In collectd 5.7, it is no longer required to supply hostname_g for default hostname,
         // an empty array will get replaced with the hostname. However, since we're collectd 5.5
@@ -382,7 +381,7 @@ fn to_array_res(s: &str) -> Result<[c_char; ARR_LENGTH], ArrayError> {
 /// ```
 pub fn from_array(s: &[c_char; ARR_LENGTH]) -> Result<&str, Utf8Error> {
     unsafe {
-        let a = s as *const [i8; ARR_LENGTH] as *const i8;
+        let a = s as *const [c_char; ARR_LENGTH] as *const c_char;
         CStr::from_ptr(a).to_str()
     }
 }
