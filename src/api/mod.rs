@@ -309,7 +309,13 @@ impl<'a> ValueListBuilder<'a> {
             .list
             .host
             .map(|x| to_array_res(x).context("host"))
-            .unwrap_or_else(|| unsafe { Ok(hostname_g) })?;
+            .unwrap_or_else(|| unsafe {
+                if cfg!(collectd58) {
+                    Ok([0 as c_char; ARR_LENGTH])
+                } else {
+                    Ok(hostname_g)
+                }
+            })?;
 
         #[cfg(collectd57)]
         let len = v.len();
