@@ -16,7 +16,12 @@ fn main() {
     let collectd_version = detect_collectd_version();
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     let version = match collectd_version.as_str() {
-        "5.8" | "5.7" => {
+        "5.8" => {
+            println!("cargo:rustc-cfg=collectd58");
+            println!("cargo:rustc-cfg=collectd57");
+            CollectdVersion::Collectd57
+        }
+        "5.7" => {
             println!("cargo:rustc-cfg=collectd57");
             CollectdVersion::Collectd57
         }
